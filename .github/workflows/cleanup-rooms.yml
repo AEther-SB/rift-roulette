@@ -1,0 +1,27 @@
+name: Pulizia automatica stanze Firebase
+on:
+  schedule:
+    # Ogni 5 minuti, offset di 2 min per evitare il sovraccarico all'ora esatta.
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rift-roulette-cleanup
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Installa dipendenze
+        run: npm install --no-audit --no-fund
+      - name: Elimina stanze inattive o vuote
+        run: npm run cleanup:rooms
+        env:
+          FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}

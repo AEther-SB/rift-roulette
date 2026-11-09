@@ -1,0 +1,226 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/)",
+        "meta": {
+          ".write": "auth != null && $room.matches(/^[A-HJ-NP-Z2-9]{8}$/) && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || (data.child('hostUid').val() === auth.uid && newData.child('hostUid').val() === auth.uid))",
+          ".validate": "newData.hasChildren(['hostUid','createdAt','phase','round','mode','tone','showAdvice']) && newData.child('hostUid').isString() && newData.child('createdAt').isNumber() && newData.child('phase').isString() && (newData.child('phase').val() === 'waiting' || newData.child('phase').val() === 'results' || newData.child('phase').val() === 'rolling' || newData.child('phase').val() === 'closed') && newData.child('round').isNumber() && newData.child('round').val() >= 1 && newData.child('mode').isString() && (newData.child('mode').val() === 'classic' || newData.child('mode').val() === 'creative') && newData.child('tone').isString() && (newData.child('tone').val() === 'balanced' || newData.child('tone').val() === 'faithful' || newData.child('tone').val() === 'offmeta') && newData.child('showAdvice').isBoolean()",
+          "hostUid": {
+            ".validate": true
+          },
+          "createdAt": {
+            ".validate": true
+          },
+          "phase": {
+            ".validate": true
+          },
+          "round": {
+            ".validate": true
+          },
+          "mode": {
+            ".validate": true
+          },
+          "tone": {
+            ".validate": true
+          },
+          "expectedPlayers": {
+            ".validate": true
+          },
+          "showAdvice": {
+            ".validate": true
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && ((!newData.exists() && data.exists()) || (root.child('rooms').child($room).child('meta').exists() && root.child('rooms').child($room).child('meta').child('phase').val() !== 'closed' && (data.exists() || ((root.child('rooms').child($room).child('meta').child('phase').val() === 'waiting' || root.child('rooms').child($room).child('meta').child('phase').val() === 'results')))))",
+            ".validate": "newData.hasChildren(['name','accent','readyRound','online','joinedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 24 && newData.child('accent').isString() && newData.child('readyRound').isNumber() && newData.child('readyRound').val() >= 0 && newData.child('joinedAt').isNumber() && newData.child('online').isBoolean()",
+            "name": {
+              ".validate": "newData.isString() && newData.val().length <= 24 && newData.val().length > 0"
+            },
+            "accent": {
+              ".validate": "newData.isString() && newData.val().length <= 16"
+            },
+            "readyRound": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "online": {
+              ".validate": "newData.isBoolean()"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "pools": {
+              "$role": {
+                ".validate": "($role === 'TOP' || $role === 'JUNGLE' || $role === 'MID' || $role === 'ADC' || $role === 'SUPPORT')",
+                "$index": {
+                  ".validate": "$index.matches(/^(0|[1-9][0-9]?|[12][0-9][0-9])$/) && newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,40}$/)"
+                }
+              }
+            },
+            "$other": {
+              ".validate": false
+            },
+            "advice": {
+              "$role": {
+                "$champion": {
+                  ".validate": "($role === 'TOP' || $role === 'JUNGLE' || $role === 'MID' || $role === 'ADC' || $role === 'SUPPORT') && $champion.matches(/^[A-Za-z0-9]{1,40}$/)",
+                  "runes": {
+                    ".validate": "newData.isString() && newData.val().length <= 400"
+                  },
+                  "items": {
+                    ".validate": "newData.isString() && newData.val().length <= 400"
+                  },
+                  "notes": {
+                    ".validate": "newData.isString() && newData.val().length <= 400"
+                  },
+                  "$other": {
+                    ".validate": false
+                  },
+                  "runePage": {
+                    "primaryStyle": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                    },
+                    "secondaryStyle": {
+                      ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                    },
+                    "primary": {
+                      "$index": {
+                        ".validate": "$index.matches(/^[0-3]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                      }
+                    },
+                    "secondary": {
+                      "$index": {
+                        ".validate": "$index.matches(/^[0-1]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                      }
+                    },
+                    "$other": {
+                      ".validate": false
+                    }
+                  },
+                  "itemIds": {
+                    "$index": {
+                      ".validate": "$index.matches(/^[0-5]$/) && newData.isString() && newData.val().matches(/^[0-9]{3,6}$/)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "result": {
+          ".write": "auth != null && root.child('rooms').child($room).child('meta').child('hostUid').val() === auth.uid",
+          ".validate": "!newData.exists() || (newData.hasChildren(['draw','selections','round','createdAt']) && newData.child('round').isNumber() && newData.child('createdAt').isNumber() && newData.child('draw').hasChildren(['0','1']))",
+          "draw": {
+            "$index": {
+              ".validate": "$index.matches(/^[0-4]$/) && newData.hasChildren(['playerId','donorId','primary','secondary'])"
+            }
+          },
+          "selections": {},
+          "round": {},
+          "createdAt": {},
+          "players": {},
+          "advice": {},
+          "recommendations": {},
+          "$other": {
+            ".validate": false
+          }
+        },
+        "$other": {
+          ".validate": false
+        },
+        "lastActivityAt": {
+          ".write": "auth != null && root.child('rooms').child($room).child('meta').exists() && (root.child('rooms').child($room).child('meta').child('hostUid').val() === auth.uid || root.child('rooms').child($room).child('members').child(auth.uid).exists())",
+          ".validate": "newData.isNumber() && newData.val() === now"
+        },
+        "lastPresenceAt": {
+          ".write": "auth != null && root.child('rooms').child($room).child('meta').exists() && root.child('rooms').child($room).child('members').child(auth.uid).exists()",
+          ".validate": "newData.isNumber() && newData.val() === now"
+        }
+      }
+    },
+    "privateProfiles": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && newData.exists()",
+        ".validate": "newData.hasChildren(['profile','updatedAt','schema']) && newData.child('updatedAt').isNumber() && newData.child('schema').val() === 1 && newData.child('profile').hasChildren(['name','accent']) && newData.child('profile').child('name').isString() && newData.child('profile').child('name').val().length <= 24 && newData.child('profile').child('accent').isString() && newData.child('profile').child('accent').val().length <= 16",
+        "profile": {
+          "advice": {
+            "$role": {
+              "$champion": {
+                ".validate": "($role === 'TOP' || $role === 'JUNGLE' || $role === 'MID' || $role === 'ADC' || $role === 'SUPPORT') && $champion.matches(/^[A-Za-z0-9]{1,40}$/)",
+                "runes": {
+                  ".validate": "newData.isString() && newData.val().length <= 400"
+                },
+                "items": {
+                  ".validate": "newData.isString() && newData.val().length <= 400"
+                },
+                "notes": {
+                  ".validate": "newData.isString() && newData.val().length <= 400"
+                },
+                "$other": {
+                  ".validate": false
+                },
+                "runePage": {
+                  "primaryStyle": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                  },
+                  "secondaryStyle": {
+                    ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                  },
+                  "primary": {
+                    "$index": {
+                      ".validate": "$index.matches(/^[0-3]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                    }
+                  },
+                  "secondary": {
+                    "$index": {
+                      ".validate": "$index.matches(/^[0-1]$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000"
+                    }
+                  },
+                  "$other": {
+                    ".validate": false
+                  }
+                },
+                "itemIds": {
+                  "$index": {
+                    ".validate": "$index.matches(/^[0-5]$/) && newData.isString() && newData.val().matches(/^[0-9]{3,6}$/)"
+                  }
+                }
+              }
+            }
+          },
+          "pools": {
+            "$role": {
+              ".validate": "($role === 'TOP' || $role === 'JUNGLE' || $role === 'MID' || $role === 'ADC' || $role === 'SUPPORT')",
+              "$index": {
+                ".validate": "$index.matches(/^(0|[1-9][0-9]?|[12][0-9][0-9])$/) && newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,40}$/)"
+              }
+            }
+          },
+          "name": {
+            ".validate": "newData.isString() && newData.val().length <= 24"
+          },
+          "accent": {
+            ".validate": "newData.isString() && newData.val().length <= 16"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
+        "schema": {
+          ".validate": "newData.isNumber() && newData.val() === 1"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
