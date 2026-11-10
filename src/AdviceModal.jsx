@@ -5,10 +5,18 @@ import { itemIconUrl, runeIconUrl } from './gameAssets.js';
 
 const EMPTY_PAGE = { primaryStyle: 0, secondaryStyle: 0, primary: [0, 0, 0, 0], secondary: [] };
 
+function GuideIcon({ src, label }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [src]);
+  return src && !broken
+    ? <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+    : <span className="guide-icon-fallback" aria-hidden="true">{label.slice(0, 2)}</span>;
+}
+
 function IconPick({ src, label, selected, disabled, onClick, detail }) {
   return <button type="button" className={`guide-icon-pick ${selected ? 'chosen' : ''}`} disabled={disabled} title={label}
     aria-label={label} aria-pressed={selected} onClick={onClick}>
-    {src ? <img src={src} alt="" loading="lazy" /> : <span className="guide-icon-fallback">{label.slice(0,2)}</span>}
+    <GuideIcon src={src} label={label} />
     <span>{label}</span>{detail && <small>{detail}</small>}
     {selected && <span className="guide-selected-mark"><Check size={12}/></span>}
   </button>;
@@ -37,9 +45,12 @@ export default function AdviceModal({ roleId, championId, profile, champions, ve
   const runeTrees = assets.runes;
   const primaryTree = runeTrees.find((tree) => tree.id === draft.runePage.primaryStyle);
   const secondaryTree = runeTrees.find((tree) => tree.id === draft.runePage.secondaryStyle);
-  const filteredItems = useMemo(() => assets.items.filter((item) =>
-    item.name.toLocaleLowerCase('it').includes(query.trim().toLocaleLowerCase('it'))
-  ).slice(0, 160), [assets.items, query]);
+  const filteredItems = useMemo(() => {
+    const search = query.trim().toLocaleLowerCase('it');
+    return assets.items.filter((item) => !search ||
+      item.name.toLocaleLowerCase('it').includes(search) || item.id.includes(search));
+  }, [assets.items, query]);
+  const itemVersion = assets.itemVersion || version;
 
   function editPage(patch) { setDraft((old) => ({ ...old, runePage: { ...old.runePage, ...patch } })); }
   function selectPrimary(id) {
@@ -106,14 +117,26 @@ export default function AdviceModal({ roleId, championId, profile, champions, ve
         </>}
         {tab === 'items' && <>
           <div className="guide-section-head"><strong>La tua build</strong><span>{draft.itemIds.length}/6 oggetti selezionati, in ordine</span></div>
+          <p className="guide-item-help">Clicca un oggetto per aggiungerlo in ordine; clicca di nuovo o premi lo slot per rimuoverlo. Massimo 6 oggetti.</p>
           <div className="guide-build-slots">{Array.from({length: 6}, (_, index) => {
             const id = draft.itemIds[index]; const item = assets.items.find((entry) => entry.id === id);
             return <button key={index} type="button" disabled={!id} className={`guide-build-slot ${id ? 'filled' : ''}`} onClick={() => id && toggleItem(id)} title={id ? `Rimuovi ${item?.name || id}` : `Slot ${index + 1}`}>
-              {id ? <img src={itemIconUrl(id, version)} alt={item?.name || id} /> : <span>+</span>}<small>{index + 1}</small>
+              {id ? <GuideIcon src={itemIconUrl(id, itemVersion, item?.icon)} label={item?.name || id} /> : <span>+</span>}<small>{index + 1}</small>
             </button>;
           })}</div>
-          <div className="guide-item-search"><Search size={17}/><input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cerca un oggetto..." aria-label="Cerca un oggetto"/></div>
-          {assets.items.length ? <div className="guide-item-grid">{filteredItems.map((item) => <IconPick key={item.id} src={itemIconUrl(item.id, version)} label={item.name} detail={item.price ? `${item.price} oro` : undefined} selected={draft.itemIds.includes(item.id)} onClick={() => toggleItem(item.id)}/>)}</div> : <p className="guide-instruction">Il catalogo degli oggetti non è disponibile. Puoi aggiungere consigli nel campo libero.</p>}
+          <div className="guide-item-search"><Search size={17}/><input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cerca un oggetto per nome o ID..." aria-label="Cerca un oggetto"/>
+            {query && <button type="button" onClick={() => setQuery('')} title="Azzera ricerca" aria-label="Azzera ricerca"><X size={15}/></button>}
+          </div>
+          {assets.itemsLoading ? <p className="guide-instruction" role="status">Caricamento oggetti da Riot Data Dragon…</p> :
+            assets.itemsError ? <p className="guide-instruction guide-load-error" role="alert">{assets.itemsError}</p> :
+            assets.items.length ? <>
+              <div className="guide-item-count">{filteredItems.length} oggetti {query ? 'trovati' : 'disponibili'} · {draft.itemIds.length}/6 selezionati</div>
+              {filteredItems.length ? <div className="guide-item-grid">{filteredItems.map((item) =>
+                <IconPick key={item.id} src={itemIconUrl(item.id, itemVersion, item.icon)} label={item.name}
+                  detail={item.price ? `${item.price} oro` : undefined} selected={draft.itemIds.includes(item.id)}
+                  disabled={draft.itemIds.length >= 6 && !draft.itemIds.includes(item.id)} onClick={() => toggleItem(item.id)}/>)}</div>
+                : <p className="guide-instruction">Nessun oggetto trovato. Prova un altro nome.</p>}
+            </> : <p className="guide-instruction guide-load-error" role="alert">Catalogo oggetti vuoto. Ricarica la pagina per riprovare.</p>}
           <label className="guide-field">Note sulla build (opzionale)<textarea maxLength={400} rows={2} value={draft.items} onChange={(e) => setDraft((old) => ({...old, items: e.target.value}))} placeholder="Ordine degli acquisti, alternative, build off-meta..."/></label>
         </>}
         {tab === 'notes' && <>

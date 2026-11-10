@@ -1,4 +1,33 @@
-# Rift Roulette 6.1 — Stanze con scadenza e deploy GitHub Pages
+# Rift Roulette 6.2 — Interfaccia compatta e catalogo oggetti corretto
+
+Questa versione parte dalla **6.1**: tutte le funzionalità multiplayer, login Google, profili, consigli personali e pulizia automatica delle stanze restano disponibili.
+
+### Modifiche rispetto alla v6.1
+
+- Rimossi la dicitura `panel-step` e il titolo «Una stanza, la vostra Rift.».
+- Strip introduttiva dei campioni con dimensioni coerenti e resa responsive, compresi gli schermi piccoli.
+- Editor delle champion pool con intestazione fissa, contenuto a scorrimento interno e card più ordinate.
+- Catalogo degli **oggetti**: caricamento Riot con fallback `it_IT` → `en_US`, errori visibili invece di un elenco vuoto, ricerca su tutto il catalogo anziché sui primi 160 elementi, immagini con fallback e limite di 6 selezioni evidenziato. Le rune e le build continuano a essere **scelte manualmente dall'utente**.
+- Nessuna modifica alle regole Firebase o ai Secrets GitHub rispetto alla v6.1.
+
+### Come aggiornare il sito già pubblicato su GitHub Pages
+
+Sostituisci i file della v6.1 con quelli nello ZIP **senza cancellare** il tuo `.env.local`, `.git` o `package-lock.json` esistente. Dalla cartella del repository:
+
+```bash
+npm install
+npm test
+npm run build
+git add .
+git commit -m "Rift Roulette 6.2: UI e oggetti"
+git push
+```
+
+GitHub Actions ripubblicherà il sito dopo il push. Se il browser mostra ancora la versione precedente, esegui un refresh forzato (`Ctrl+Shift+R`). Il workflow di pulizia delle stanze continua a funzionare senza modifiche.
+
+---
+
+# Guida originale — Stanze con scadenza e deploy GitHub Pages
 
 Sito React + Vite + Firebase Realtime Database. La modalità predefinita è **multiplayer**; restano disponibili modalità locale, pool personali, rune/item scelti dall'utente, import/export JSON e login Google con profilo cloud.
 

@@ -14,7 +14,7 @@ import { generateRoleSelections, generateRecommendedComps, validateLobbyPools } 
 import { createPoolsFile, parsePoolsFile } from './poolsFile.js';
 import { PROFILE_KEY, cleanOwnProfile, cleanRoomCode, isProfileComplete, readyMembers, getRoomMembers, createSharedResult, cleanAdvice, adviceForDraw } from './roomLogic.js';
 import AdviceModal from './AdviceModal.jsx';
-import { normalizeRunes, normalizeItems, runeIconUrl, itemIconUrl } from './gameAssets.js';
+import { normalizeRunes, normalizeItems, runeIconUrl, itemIconUrl, fetchGameAsset } from './gameAssets.js';
 import { firebaseConfigured, createRoom, assertRoomExists, joinRoom, watchRoom, updateMember, leaveRoom, changeRoomSettings, submitRoll, restartRoom, closeRoom, beginRoll, markRoomActivity, watchConnection, watchAuth, connectGoogle, disconnectGoogle, isGoogleAccount, saveCloudProfile, loadCloudProfile } from './firebaseRoom.js';
 
 const STORAGE_KEY = 'rift-roulette-state-v1';
@@ -147,11 +147,10 @@ function useChampionCatalogue() {
   return catalogue;
 }
 
-function PanelHeading({ step, title, action }) {
+function PanelHeading({ title, action }) {
   return (
     <div className="panel-heading">
       <div>
-        <span className="panel-step">{step} <span>/</span> RIFT ROULETTE</span>
         <h2>{title}</h2>
       </div>
       {action}
@@ -163,7 +162,6 @@ function PlayersPanel({ players, selectedId, onSelect, onAdd, onRemove, onExport
   return (
     <aside className="panel players-panel">
       <PanelHeading
-        step="01"
         title="Il tuo roster"
         action={<span className="count-tag">{String(players.length).padStart(2, '0')}</span>}
       />
@@ -268,7 +266,6 @@ function EditorPanel({ player, champions, version, onRename, onOpenPicker, onRem
   return (
     <section className="panel editor-panel">
       <PanelHeading
-        step="02"
         title="Champion pool"
         action={<span className="editor-status"><span className="live-dot" /> EDITABILE</span>}
       />
@@ -304,18 +301,21 @@ function EditorPanel({ player, champions, version, onRename, onOpenPicker, onRem
 }
 
 function useGameAssets(version) {
-  const [assets, setAssets] = useState({ runes: [], items: [] });
+  const [assets, setAssets] = useState({ runes: [], items: [], itemsLoading: true, itemsError: "", itemVersion: version });
   useEffect(() => {
     const controller = new AbortController();
+    setAssets((previous) => ({ ...previous, itemsLoading: true, itemsError: '' }));
     async function load() {
-      const base = `https://ddragon.leagueoflegends.com/cdn/${version}/data/it_IT`;
       const [runes, items] = await Promise.allSettled([
-        fetch(`${base}/runesReforged.json`, {signal: controller.signal}).then((r) => { if (!r.ok) throw Error('Rune non disponibili'); return r.json(); }),
-        fetch(`${base}/item.json`, {signal: controller.signal}).then((r) => { if (!r.ok) throw Error('Oggetti non disponibili'); return r.json(); }),
+        fetchGameAsset(version, 'runesReforged', controller.signal),
+        fetchGameAsset(version, 'item', controller.signal),
       ]);
       if (!controller.signal.aborted) setAssets({
-        runes: runes.status === 'fulfilled' ? normalizeRunes(runes.value) : [],
-        items: items.status === 'fulfilled' ? normalizeItems(items.value) : [],
+        runes: runes.status === 'fulfilled' ? normalizeRunes(runes.value.data) : [],
+        items: items.status === 'fulfilled' ? normalizeItems(items.value.data) : [],
+        itemVersion: version,
+        itemsLoading: false,
+        itemsError: items.status === 'rejected' ? 'Impossibile caricare gli oggetti da Riot Data Dragon. Controlla la connessione e ricarica la pagina.' : '',
       });
     }
     load().catch(() => {});
@@ -336,7 +336,7 @@ function PersonalAdvice({ guide, author, assets, version }) {
       {runeIds.map((id) => { const rune = allRunes.find((r) => r.id === id); return rune && <img title={rune.name} alt={rune.name} key={id} src={runeIconUrl(rune.icon)} />; })}
     </div>}
     {Array.isArray(guide.itemIds) && guide.itemIds.length > 0 && <div className="advice-visual-strip">
-      {guide.itemIds.map((id) => <img key={id} src={itemIconUrl(id,version)} title={assets?.items?.find((it) => it.id === id)?.name || id} alt={assets?.items?.find((it) => it.id === id)?.name || id} />)}
+      {guide.itemIds.map((id) => <img key={id} src={itemIconUrl(id, assets?.itemVersion || version, assets?.items?.find((it) => it.id === id)?.icon)} title={assets?.items?.find((it) => it.id === id)?.name || id} alt={assets?.items?.find((it) => it.id === id)?.name || id} />)}
     </div>}
     {guide.runes && <p><strong>Rune:</strong> {guide.runes}</p>}
     {guide.items && <p><strong>Build:</strong> {guide.items}</p>}
@@ -388,7 +388,6 @@ function LobbyPanel({ players, lobbyIds, draw, onToggle, onShuffle, rolling, mod
   return (
     <aside className="panel lobby-panel">
       <PanelHeading
-        step="03"
         title="La tua lobby"
         action={<span className="count-tag"><Users size={13} /> {selected}/5</span>}
       />
@@ -1084,18 +1083,20 @@ function OnlineParty({ champions, version, assets, homeNonce, localRequest, onGo
   return (
     <div className="online-page">
       <div className="online-intro">
-        <div><span className="section-eyebrow"><Wifi size={15}/> PARTY MULTIPLAYER</span><h2>Una stanza, la vostra Rift.</h2>
-        <p>Condividi il codice, prepara la tua pool e premi Pronto. Da 2 a 5 amici, tutti sincronizzati.</p></div>
-        <div className="intro-champ-strip" aria-label="Ritratti campioni da Riot Data Dragon">
-          {['Ahri', 'Jinx', 'Yasuo', 'Thresh'].map((id) => <ChampionPortrait key={id} champion={getChampById(id, champions)} version={version} size="intro" />)}
-          <span>2–5 giocatori<br/>Google facoltativo</span>
+        <div className="online-intro-copy"><span className="section-eyebrow"><Wifi size={15}/> PARTY MULTIPLAYER</span>
+        <p>Condividi il codice, prepara le pool e premi Pronto. Da 2 a 5 amici, sincronizzati.</p></div>
+        <div className="intro-champ-strip" aria-label="Quattro campioni di League of Legends">
+          <div className="intro-champ-portraits">
+            {['Ahri', 'Jinx', 'Yasuo', 'Thresh'].map((id) => <ChampionPortrait key={id} champion={getChampById(id, champions)} version={version} size="intro" />)}
+          </div>
+          <div className="intro-champ-meta"><strong>2–5 giocatori</strong><span>Google facoltativo</span></div>
         </div>
       </div>
       {!firebaseConfigured && <div className="online-config-notice"><Info size={20}/><div><strong>Configurazione Firebase richiesta</strong><p>La modalità multiplayer funziona dopo aver aggiunto le variabili Firebase e pubblicato le regole del database. La modalità locale resta disponibile. Segui il README incluso nello ZIP.</p></div></div>}
       {message && <div className="online-message" role="status"><Info size={15}/><span>{message}</span><button onClick={() => setMessage('')} aria-label="Chiudi messaggio"><X size={14}/></button></div>}
       <div className="online-workspace">
         <aside className="panel online-room-panel">
-          <PanelHeading step="01" title="La stanza" action={<span className="count-tag"><Wifi size={12}/>{roomCode ? 'LIVE' : 'OFFLINE'}</span>} />
+          <PanelHeading title="La stanza" action={<span className="count-tag"><Wifi size={12}/>{roomCode ? 'LIVE' : 'OFFLINE'}</span>} />
           {!roomCode ? <>
             <p>Un amico crea la stanza, gli altri entrano con il codice o con il link.</p>
             <button className="online-create-btn" disabled={!firebaseConfigured || working} onClick={() => { attemptRef.current = true; enterRoom('', true); }}><Plus size={17}/> Crea stanza</button>
@@ -1154,7 +1155,7 @@ function OnlineParty({ champions, version, assets, homeNonce, localRequest, onGo
         </div>
 
         <aside className="panel online-controls-panel">
-          <PanelHeading step="02" title="Avvia la queue" action={<span className="count-tag">{meta?.round ? `ROUND ${meta.round}` : 'READY'}</span>} />
+          <PanelHeading title="Avvia la queue" action={<span className="count-tag">{meta?.round ? `ROUND ${meta.round}` : 'READY'}</span>} />
           {!roomCode ? <p>Entra in una stanza per sincronizzare le pool e mettere Pronto.</p> : <>
             <div className="online-phase"><span className="live-dot"/>{meta?.phase === 'rolling' ? 'SORTEGGIO...' : meta?.phase === 'results' ? 'RISULTATO PRONTO' : 'IN ATTESA'}</div>
             <p>{members.length < 2 ? 'In attesa di almeno un altro giocatore.' : `${members.length} giocatori: il roll parte quando tutti sono Pronto.`} Ogni profilo richiede almeno un campione per ruolo.</p>
