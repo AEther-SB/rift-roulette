@@ -12,7 +12,7 @@
     "cleanup:rooms": "node scripts/cleanup-rooms.mjs"
   },
   "dependencies": {
-    "firebase": "^13.2.0",
+    "firebase": "^13.4.0",
     "lucide-react": "^1.70.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
